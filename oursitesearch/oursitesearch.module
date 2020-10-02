@@ -1,0 +1,33 @@
+<?php
+/**
+ * @file
+ * This is a simple module that prints out our custom google site search box.
+ */
+
+/**
+ * Implements hook_block_info().
+ *
+ * This hook declares what blocks are provided by the module.
+ */
+function oursitesearch_block_info() {
+  $blocks[0] = array(
+    'info' => t('Our Custom Site Search Box'),
+  );
+  return $blocks;
+}
+
+/**
+ * Implementation of hook_block().
+ */
+function oursitesearch_block_view($delta = 0) {
+  $block['subject'] = 'Site Search';
+  $block['content'] = '<form class="search" id="sitesearch" action="https://www.google.com/search">
+                          <fieldset>
+                              <legend>Site Search</legend>
+                              <input type="text" class="searchbox" id="q" name="q" maxlength="255" value="" />
+                              <input type="hidden" name="sitesearch" value="usgo.org" />
+                              <input type="submit" class="searchbutton" id="searchbutton" value="Search" />
+                          </fieldset>
+                       </form>';
+  return $block;
+}

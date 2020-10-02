@@ -1,0 +1,3 @@
+name = Custom Site Search box
+description = A simple module that displays our custom google site search box
+core = 7.x
