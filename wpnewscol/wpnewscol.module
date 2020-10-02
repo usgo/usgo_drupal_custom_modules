@@ -1,0 +1,53 @@
+<?php
+/**
+ * @file
+ * This is a simple module that prints out the cached wordpress sidebar
+ * content.
+ */
+
+/**
+ * Implements hook_block_info().
+ *
+ * This hook declares what blocks are provided by the module.
+ */
+function wpnewscol_block_info() {
+  $blocks[0] = array(
+    'info' => t('Custom Wordpress Latest News Sidebar from the generated extracol.html -> extracol.cached.html.'),
+  );
+  return $blocks;
+}
+
+/**
+ * Implementation of hook_block().
+ */
+function wpnewscol_block_view($delta = 0) {
+  // Directory of the kabocha theme.
+  $kabocha_theme_dir = DRUPAL_ROOT . "/" . drupal_get_path('theme', 'kabocha');
+
+  // Based on the $kabocha_theme_dir get the includes directory which is
+  // a dir up from the $kabocha_theme_dir or drupal's theme for
+  // usgo.org.
+  $theme_includes_dir = dirname($kabocha_theme_dir . "..") . "/includes";
+
+  // Location of our extracol.html
+  $wp_extra_col = $theme_includes_dir . '/extracol.html';
+
+  // See that the directory exists before we add the path to our
+  // custom block for extracol.html.
+  if (file_exists($kabocha_theme_dir) &&
+         file_exists($theme_includes_dir) &&
+         file_exists($wp_extra_col)) {
+    // Define the block subject.
+    $block['subject'] = 'Latest News';
+
+    // The news block content from the generated extracol.html stored in
+    // $block['content'].
+    $block['content'] = file_get_contents($wp_extra_col);
+  } else {
+    $block['subject'] = 'Latest News Block Error:';
+    $block['content'] .= t('Requirements of: ');
+    $block['content'] .= t('kabocha, kabocha/includes or ');
+    $block['content'] .= t('kabocha/includes/extracol.html, not met.');
+  }
+  return $block;
+}

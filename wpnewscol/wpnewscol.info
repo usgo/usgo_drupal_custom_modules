@@ -1,0 +1,3 @@
+name = Wordpress News Sidebar
+description = A simple module that displays the cached Wordpress News file in a sidebar
+core = 7.x
