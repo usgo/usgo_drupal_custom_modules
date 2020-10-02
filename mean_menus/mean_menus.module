@@ -1,0 +1,509 @@
+<?php
+
+/**
+ * @file
+ *  Module to enable my custom menus, a mod of Nice Menu's code
+ *
+ * Maintainer: Addison Berry (add1sun)
+ * Originally written by Jake Gordon (jakeg)
+ *
+ * Changed, hacked and bastardized by Joshua Simmons
+ */
+
+/**
+ * Implements hook_help().
+ */
+function mean_menus_help($path, $arg) {
+  $output = '';
+  switch ($path) {
+    case 'admin/config/modules#description':
+      $output .= t('Make custom CSS menus for site and admin menus.');
+      break;
+    case 'admin/config/mean_menus':
+      $output .= t('<p>This is a simple module that enables the site to have custom CSS menus for site and admin navigation.</p><p>Remember to activate and configure the menu blocks in !link</p>', array('!link' => l('admin/structure/block', 'admin/structure/block')));
+      break;
+  }
+  return $output;
+}
+
+/**
+ * Implements hook_menu().
+ */
+function mean_menus_menu() {
+  $items['admin/config/user-interface/mean_menus'] = array(
+    'title' => 'Mean menus',
+    'description' => 'Configure Mean menus.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mean_menus_admin_settings'),
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+/**
+ * Settings form as implemented by hook_menu
+ */
+function mean_menus_admin_settings($form, &$form_state) {
+  $form['mean_menus_number'] = array(
+    '#type' => 'textfield',
+    '#description' => t('The total number of independent Mean menus blocks you want. Enter a number between 0 and 99. If you set this to 0, you will have no blocks created but you can still use the Mean menus theme functions directly in your theme.'),
+    '#default_value' => variable_get('mean_menus_number', '2'),
+    '#size' => 2,
+  );
+
+  // Custom validation to make sure the user is entering numbers.
+  $form['#validate'][] = 'mean_menus_settings_validate';
+
+  return system_settings_form($form);
+}
+
+/**
+ * Custom validation for the settings form.
+ */
+function mean_menus_settings_validate($form, &$form_state) {
+  $number = $form_state['values']['mean_menus_number'];
+  // Check to make sure it is a number and that is a maximum of 2 digits.
+  if (!is_numeric($number) || strlen($number) > 2) {
+    form_set_error('mean_menus_number', t('You must enter a number from 0 to 99.'));
+  }
+}
+
+/**
+ * Implements hook_init().
+ *
+ * We are adding the JavaScript and CSS here rather than theme_mean_menu
+ * because when block caching is enabled none of it would get fired
+ * and the menus are unstyled.
+ */
+function mean_menus_init() {
+  drupal_add_css(drupal_get_path('module', 'mean_menus') . '/style/expand.css',
+                 array('every_page' => TRUE));
+  drupal_add_css(drupal_get_path('module', 'mean_menus') . '/style/flyout.css',
+                 array('browsers' => array('IE' => 'gt IE 6', '!IE' => TRUE),
+                       'every_page' => TRUE));
+  drupal_add_js(drupal_get_path('module', 'mean_menus') . '/scripts/json2.js',
+                array('every_page' => TRUE));
+  drupal_add_js(drupal_get_path('module', 'mean_menus') . '/scripts/jquery.cookies.js',
+                array('every_page' => TRUE));
+  drupal_add_js(drupal_get_path('module', 'mean_menus') . '/scripts/expand_menu.js',
+                array('every_page' => TRUE));
+  drupal_add_js(drupal_get_path('module', 'mean_menus') . '/scripts/startup.js',
+                array('every_page' => TRUE));
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function mean_menus_block_info() {
+  $blocks = array();
+  for ($i = 1; $i <= variable_get('mean_menus_number', '2'); $i++) {
+    $blocks[$i]['info'] = variable_get('mean_menus_name_' . $i, 'Mean menu ' . $i) . ' (Mean menu)';
+    // We have too many things changing per user, per page to cache.
+    $blocks[$i]['cache'] = DRUPAL_NO_CACHE;
+  }
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_configure().
+ */
+function mean_menus_block_configure($delta) {
+  $form['mean_menus_name_' . $delta] = array(
+    '#type' => 'textfield',
+    '#title' => t('Menu Name'),
+    '#default_value' => variable_get('mean_menus_name_' . $delta, 'Mean menu ' . $delta),
+  );
+  $form['mean_menus_menu_' . $delta] = array(
+    '#type' => 'select',
+    '#title' => t('Menu Parent'),
+    '#description' => t('The menu parent from which to show a Mean menu.'),
+    '#default_value' => variable_get('mean_menus_menu_' . $delta, 'navigation:0'),
+    '#options' => menu_get_menus(),
+  );
+  $form['mean_menus_depth_' . $delta] = array(
+    '#type' => 'select',
+    '#title' => t('Menu Depth'),
+    '#description' => t('The depth of the menu, i.e. the number of child levels starting with the parent selected above. Leave set to -1 to display all children and use 0 to display no children.'),
+    '#default_value' => variable_get('mean_menus_depth_' . $delta, -1),
+    '#options' => drupal_map_assoc(range(-1, 5)),
+  );
+  $form['mean_menus_classes_'. $delta] = array(
+    '#type' => 'textfield',
+    '#title' => t('Menu Classes'),
+    '#description' => t('CSS classes to add to the menu when displayed'),
+    '#default_value' => variable_get('mean_menus_classes_'. $delta, ''),
+  );
+  $form['mean_menus_id_'. $delta] = array(
+    '#type' => 'textfield',
+    '#title' => t('Menu Id'),
+    '#description' => t('CSS id to add to the menu when displayed'),
+    '#default_value' => variable_get('mean_menus_id_'. $delta, 'mean-menu-'. $delta),
+  );
+  return $form;
+}
+
+/**
+ * Implements hook_block_save().
+ */
+function mean_menus_block_save($delta, $edit) {
+  variable_set('mean_menus_name_' . $delta, $edit['mean_menus_name_' . $delta]);
+  variable_set('mean_menus_menu_' . $delta, $edit['mean_menus_menu_' . $delta]);
+  variable_set('mean_menus_depth_' . $delta, $edit['mean_menus_depth_' . $delta]);
+  variable_set('mean_menus_classes_'. $delta, $edit['mean_menus_classes_'. $delta]);
+  variable_set('mean_menus_id_'. $delta, $edit['mean_menus_id_'. $delta]);
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function mean_menus_block_view($delta) {
+  // Build the Mean menu for the block.
+  list($menu_name) = explode(':', variable_get('mean_menus_menu_' . $delta, 'navigation:0'));
+  $depth =  variable_get('mean_menus_depth_'   . $delta, '-1');
+  $cid =    variable_get('mean_menus_id_'      . $delta, '');
+  $cclass = variable_get('mean_menus_classes_' . $delta, '');
+  if ($output = theme('mean_menus', array('id' => $cid, 'class' => $cclass, 'menu_name' => $menu_name, 'depth' => $depth))) {
+    $block['content'] = $output['content'];
+    // If we're building the navigation block
+    // use the same block title logic as menu module.
+    if ($output['subject'] == t('navigation') && $user->uid) {
+      global $user;
+      $subject = $user->name;
+    }
+    else {
+      $subject = $output['subject'];
+    }
+    $block['subject'] = '<span class="unknown">' . check_plain($subject) . '</span>';
+  }
+  else {
+    $block['content'] = FALSE;
+  }
+  return $block;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function mean_menus_theme() {
+  return array(
+    'mean_menus_tree' => array(
+      'variables' => array('menu_name' => NULL, 'mlid' => NULL, 'depth' => -1, 'menu' => NULL),
+    ),
+    'mean_menus_build' => array(
+      'variables' => array('menu' => NULL, 'depth' => -1, 'trail' => NULL),
+    ),
+    'mean_menus' => array(
+      'variables' => array('id' => NULL, 'class' => NULL, 'menu_name' => NULL, 'mlid' => NULL, 'depth' => -1, 'menu' => NULL),
+    ),
+    'mean_menus_main_menu' => array(
+      'variables' => array('depth' => -1),
+    ),
+    'mean_menus_secondary_menu' => array(
+      'variables' => array('depth' => -1),
+    ),
+    'mean_menus_menu_item_link' => array(
+      'variables' => array('element' => array()),
+    ),
+  );
+}
+
+/**
+ * Builds the active trail from the page's menu data.
+ *
+ * @param $page_menu
+ *   The menu data for a page.
+ *
+ * @return
+ *   An array of parent menu item ids.
+ */
+function mean_menus_build_page_trail($page_menu) {
+  $trail = array();
+  foreach ($page_menu as $item) {
+    if ($item['link']['in_active_trail']) {
+      $trail[] = $item['link']['mlid'];
+    }
+    if ($item['below']) {
+      $trail = array_merge($trail, mean_menus_build_page_trail($item['below']));
+    }
+  }
+  return $trail;
+}
+
+/**
+ * Builds the final Mean menu.
+ *
+ * @param $menu_name
+ *   The top-level menu name that contains the menu to use (e.g. navigation
+ *   or main-menu) for Drupal menus. For custom $menus this is just the
+ *   name for menu display.
+ * @param $mlid
+ *   The menu ID from which to start building the items, i.e. the parent
+ *   of the displayed menu.
+ * @param $depth
+ *   The number of children levels to display. Use -1 to display all children
+ *   and use 0 to display no children.
+ * @param $menu
+ *   Optional. A custom menu array to use for theming -- it should have
+ *   the same structure as that returned by menu_tree_all_data().
+ *
+ * @return
+ *   An HTML string of properly nested Mean menu lists.
+ */
+function theme_mean_menus_tree($variables) {
+  $menu_name = $variables['menu_name'];
+  $mlid = $variables['mlid'];
+  $depth = $variables['depth'];
+  $menu = $variables['menu'];
+  // Load the full menu array.
+  $menu = isset($menu) ? $menu : menu_tree_all_data($menu_name);
+  if (isset($menu)) {
+    $page_menu = menu_tree_page_data($menu_name);
+    $trail = mean_menus_build_page_trail($page_menu);
+    unset($page_menu);
+  }
+
+  // Allow i18n module to translate strings where available.
+  if (module_exists('i18n_menu')) {
+    $menu = i18n_menu_localize_tree($menu);
+  }
+  
+  // Assume depth == 0 by default, overriden if mlid is specified.
+  $parent_depth = 0;
+  
+  // For custom $menus and menus built all the way from the top-level we
+  // don't need to "create" the specific sub-menu and we need to get the title
+  // from the $menu_name since there is no "parent item" array.
+
+  // Create the specific menu if we have a mlid.
+  if (!empty($mlid)) {
+    // Load the parent menu item.
+    $item = menu_link_load($mlid);
+    $title = check_plain($item['title']);
+    // The depth for our parent item, if it exists.
+    $parent_depth = ($item['depth']) ? $item['depth'] : 0;
+
+    // Narrow down the full menu to the specific sub-tree we need.
+    for ($p = 1; $p < 10; $p++) {
+      if ($sub_mlid = $item["p$p"]) {
+        $subitem = menu_link_load($sub_mlid);
+        // Menu sets these ghetto-ass keys in _menu_tree_check_access().
+        $menu = $menu[(50000 + $subitem['weight']) . ' ' . $subitem['title'] . ' ' . $subitem['mlid']]['below'];
+      }
+    }
+  }
+  // Otherwise just set a title and move on.
+  else {
+    // Get the title from the DB since we don't have it in the $menu.
+    $result = db_query("SELECT title FROM {menu_custom} WHERE menu_name = :menu_name", array(':menu_name' => $menu_name))->fetchField();
+    $title = check_plain($result);
+  }
+
+  $output['content'] = '';
+  $output['subject'] = $title;
+
+  if ($menu) {
+    // Set the total menu depth counting from this parent if we need it.
+    $depth =  ($depth > 0) ? ($parent_depth + $depth) : $depth;
+    $output['content'] .= theme('mean_menus_build', array('menu' => $menu, 'depth' => $depth, 'trail' => $trail));
+  }
+  
+  return $output;
+}
+
+/**
+ * Helper function that builds the nested lists of a Mean menu.
+ *
+ * @param $menu
+ *   Menu array from which to build the nested lists.
+ * @param $depth
+ *   The number of children levels to display. Use -1 to display all children
+ *   and use 0 to display no children.
+ * @param $trail
+ *   An array of parent menu items.
+ */
+function theme_mean_menus_build($variables) {
+  $menu = $variables['menu'];
+  $depth = $variables['depth'];
+  $trail = $variables['trail'];
+  $output = '';
+  // Prepare to count the links so we can mark first, last, odd and even.
+  $index = 0;
+  $count = 0;
+  foreach ($menu as $menu_count) {
+    if ($menu_count['link']['hidden'] == 0) {
+      $count++;
+    }
+  }
+  // Get to building the menu.
+  foreach ($menu as $menu_item) {
+    $mlid = $menu_item['link']['mlid'];
+    // Check to see if it is a visible menu item.
+    if (!isset($menu_item['link']['hidden']) || $menu_item['link']['hidden'] == 0) {
+      // Check our count and build first, last, odd/even classes.
+      $index++;
+      $first_class = $index == 1 ? ' first ' : '';
+      $oddeven_class = $index % 2 == 0 ? ' even ' : ' odd ';
+      $last_class = $index == $count ? ' last ' : '';
+      // Build class name based on menu path
+      // e.g. to give each menu item individual style.
+      // Strip funny symbols.
+      $clean_path = str_replace(array('http://', 'www', '<', '>', '&', '=', '?', ':', '.'), '', $menu_item['link']['href']);
+      // Convert slashes to dashes.
+      $clean_path = str_replace('/', '-', $clean_path);
+      $class = 'menu-path-' . $clean_path;
+      if ($trail && in_array($mlid, $trail)) {
+        $class .= ' active-trail';
+      }
+      // If it has children build a mean little tree under it.
+      if ((!empty($menu_item['link']['has_children'])) && (!empty($menu_item['below'])) && $depth != 0) {
+        // Keep passing children into the function 'til we get them all.
+        $children = theme('mean_menus_build', array('menu' => $menu_item['below'], 'depth' => $depth, 'trail' => $trail));
+        // Set the class to parent only of children are displayed.
+        $parent_class = ($children && ($menu_item['link']['depth'] <= $depth || $depth == -1)) ? 'menuparent ' : '';
+         
+         $element = array(
+          '#below' => '',
+          '#title' => $menu_item['link']['link_title'],
+          '#href' =>  $menu_item['link']['href'],
+          '#localized_options' => $menu_item['link']['localized_options'],
+          '#attributes' => array(),
+        );
+        $variables['element'] = $element;
+
+        if ($children) {
+          $link_or_span = '<span class="opener">' . theme('mean_menus_menu_item_link', $variables) . '</span>';
+        } else {
+          $link_or_span = theme('mean_menus_menu_item_link', $variables);
+        }
+        $output .= '<li class="menu-' . $mlid . ' ' . $parent_class . $class . $first_class . $oddeven_class . $last_class . '">'. $link_or_span;
+        // Check our depth parameters.
+        if ($menu_item['link']['depth'] <= $depth || $depth == -1) {
+          // Build the child UL only if children are displayed for the user.
+          if ($children) {
+            $output .= '<ul>';
+            $output .= $children;
+            $output .= "</ul>\n";
+          }
+        }
+        $output .= "</li>\n";
+      }
+      else {
+     
+        $element = array(
+          '#below' => '',
+          '#title' => $menu_item['link']['link_title'],
+          '#href' =>  $menu_item['link']['href'],
+          '#localized_options' => $menu_item['link']['localized_options'],
+          '#attributes' => array(),
+        );
+        $variables['element'] = $element;
+        $output .= '<li class="menu-' . $mlid . ' ' . $class . $first_class . $oddeven_class . $last_class . '">' . theme('mean_menus_menu_item_link', $variables) . "</li>\n";
+      }
+    }
+  }
+  return $output;
+}
+
+/**
+ * Theme function to allow any menu tree to be themed as a Mean menu.
+ *
+ * @param $id
+ *   The Mean menu ID.
+ * @param $menu_name
+ *   The top parent menu name from which to build the full menu.
+ * @param $mlid
+ *   The menu ID from which to build the displayed menu.
+ * @param $depth
+ *   The number of children levels to display. Use -1 to display all children
+ *   and use 0 to display no children.
+ * @param $menu
+ *   Optional. A custom menu array to use for theming --
+ *   it should have the same structure as that returned
+ *  by menu_tree_all_data(). Default is the standard menu tree.
+ *
+ * @return
+ *   An HTML string of Mean menu links.
+ */
+function theme_mean_menus($variables) {
+  $output = array(
+    'content' => '',
+    'subject' => '',
+  );
+
+  $id = $variables['id'];
+  $class = $variables['class'];
+  $menu_name = $variables['menu_name'];
+  $mlid = $variables['mlid'];
+  $depth = $variables['depth'];
+  $menu = $variables['menu'];
+
+  $class_temp = '';
+  $id_temp = '';
+  if (!empty($class))
+  {
+      $class_temp = "class=\"$class\"";
+  }
+  if (!empty($id))
+  {
+      $id_temp = "id=\"$id\"";
+  }
+
+  if ($menu_tree = theme('mean_menus_tree', array('menu_name' => $menu_name, 'mlid' => $mlid, 'depth' => $depth, 'menu' => $menu))) {
+    if ($menu_tree['content']) {
+      $output['content'] = "<ul $class_temp $id_temp>" . $menu_tree['content'] . '</ul>' . "\n";
+      $output['subject'] = $menu_tree['subject'];
+    }
+  }
+  return $output;
+}
+
+/**
+ * Theme the main menu as a Mean menu.
+ *
+ * @param $depth
+ *   The number of children levels to display. Use -1 to display all children
+ *   and use 0 to display no children.
+ *
+ * @return
+ *   An HTML string of Mean main menu links.
+ */
+function theme_mean_menus_main_menu($variables) {
+  $depth = $variables['depth'];
+  $menu_name = variable_get('menu_main_links_source', 'main-menu');
+  $output = theme('mean_menus', array('id' => 'mean-menu-0', 'class' => NULL, 'menu_name' => $menu_name, 'mlid' => 0, 'depth' => $depth));
+  return $output['content'];
+}
+
+/**
+ * Theme the secondary menu as a Mean menu.
+ *
+ * @param $depth
+ *   The number of children levels to display. Use -1 to display all children
+ *   and use 0 to display no children.
+ *
+ * @return
+ *   An HTML string of Mean secondary menu links.
+ */
+function theme_mean_menus_secondary_menu($variables) {
+  $depth = $variables['depth'];
+  $menu_name = variable_get('menu_secondary_links_source', 'user-menu');
+  $output = theme('mean_menus', array('id' => 'mean-menu-0', 'class' => NULL, 'menu_name' => $menu_name, 'mlid' => 0, 'depth' => $depth));
+  return $output['content'];
+}
+
+/**
+ * Generate the HTML output for a single menu link.
+ *
+ * Function is a backport of Drupal 6
+ */
+function theme_mean_menus_menu_item_link($variables) {
+  if (empty($variables['element']['#localized_options'])) {
+    $variables['element']['#localized_options'] = array();
+  }
+  if ($variables['element']['#href'] == "http://invalid") {
+    return $variables['element']['#title'];
+  }
+  return l($variables['element']['#title'], $variables['element']['#href'], $variables['element']['#localized_options']);
+}

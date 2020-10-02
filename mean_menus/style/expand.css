@@ -1,0 +1,30 @@
+.expand .opener {
+    cursor: pointer;
+}
+
+.expand .opener.hider {
+    background: url(../images/subtract.png) no-repeat 7px center;
+    padding-left: 20px;
+}
+
+.expand .opener.shower {
+    background: url(../images/add.png) no-repeat 7px center;
+    padding-left: 20px;
+}
+
+.expand a.openerGoer {
+    display: inline;
+    padding-left: 2px;
+}
+
+.expand a.openerGoer img {
+    border: none;
+    vertical-align: middle;
+}
+
+/* preload these images, in newer browsers */
+body:after {
+    content: url(../images/add.png) url(../images/subtract.png) url(../images/forward.png);
+    display: none;
+}
+

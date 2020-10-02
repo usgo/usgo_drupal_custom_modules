@@ -1,0 +1,7 @@
+name = Mean Menus
+description = CSS/jQuery expanding menus, drupal parts heavily based on "Nice Menus"
+dependencies[] = menu
+core = 7.x
+configure = admin/config/user-interface/mean_menus
+files[] = mean_menus.install
+files[] = mean_menus.module

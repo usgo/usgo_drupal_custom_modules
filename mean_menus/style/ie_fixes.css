@@ -1,0 +1,3 @@
+#content form {
+    background: #d6ffcc; /* work around IE's fieldset color bleeding */
+}

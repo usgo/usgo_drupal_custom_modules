@@ -1,0 +1,73 @@
+.flyout {
+    position: relative;
+}
+
+/* Must use left: -bugnum em; (instead of display: none) to fix a bug in IE7,
+ * where it would show the border for a sub-list that is not shown, after it
+ * was shown before 
+ *
+ * works okay in other browsers too, just a little less clear in meaning.*/
+.flyout ul {
+    position: absolute;
+    left: -1000em;
+    display: block;
+}
+
+.flyout a,
+.flyout .opener {
+    text-decoration: none;
+    line-height: 24px;
+    padding: 4px 10px !important;
+    padding-right: 19px !important;
+    display: block;
+    color: black;
+    background: #f2f2c2;
+}
+
+.flyout .opener {
+    background-image: url('../images/flyout_mark.png');
+    background-repeat: no-repeat;
+    background-position: right;
+}
+
+.flyout .opener:hover,
+.flyout li:hover > .opener {
+    color: black;
+    background-color: #c05600;
+}
+
+.flyout .opener:hover a,
+.flyout li:hover > .opener a {
+    background: transparent;
+}
+
+.flyout .opener a {
+    padding: 0 !important;
+}
+
+.flyout,
+.flyout ul {
+    margin: 0;
+    padding: 0px 1px !important;
+    list-style-type: none;
+}
+
+.flyout ul {
+    border: 1px solid black;
+}
+
+.flyout li {
+    left: 100%;
+}
+
+.flyout li li,
+.flyout li li li {
+    font-size: 100% !important;
+}
+
+.flyout li:hover > ul {
+    left: 100%;
+    margin-top: -33px;
+    margin-left: -4px;
+}
+

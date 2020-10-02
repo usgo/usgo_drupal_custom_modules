@@ -1,0 +1,17 @@
+/* Trigger non-standard IE hasLayout for certain objects.
+ * Sometimes makes IE behave better, especially IE 6
+ *
+ * NOTE: when changing this, look at ie7_fixes.css too */
+#extracol,
+#navwrap,
+#news li,
+#contentwrapper,
+#fauxcolbgR,
+.containfloats,
+.mainnav li {
+    zoom: 1;
+}
+
+#content fieldset label {
+    width: 110px;
+}

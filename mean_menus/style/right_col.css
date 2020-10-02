@@ -1,0 +1,16 @@
+#fauxcolbgR {
+    background: url(../images/rcol_bg.png) repeat-y top right;
+}
+
+#content {
+    margin-right: 160px !important;    
+}
+
+#extracol {
+    float: left;
+    width: 160px;
+    margin: 0;
+    padding: 0;
+    margin-left: -160px;
+    display: block !important;
+}
